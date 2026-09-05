@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FTC Teams World Map</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
+
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+
+        #panel {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 1000;
+            width: 290px;
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+
+        #panel-header {
+            background: #d62728;
+            color: white;
+            padding: 14px 16px 10px;
+        }
+
+        #panel-header h1 {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        #panel-header p {
+            font-size: 11px;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+
+        #panel-body {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #search {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1.5px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        #search:focus {
+            border-color: #d62728;
+        }
+
+        #filters {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        #filters select {
+            width: 100%;
+            padding: 5px 8px;
+            border: 1.5px solid #ddd;
+            border-radius: 6px;
+            font-size: 12px;
+            background: white;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #filters select:focus {
+            border-color: #d62728;
+        }
+
+        #stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #555;
+        }
+
+        #team-count {
+            font-weight: 600;
+            color: #222;
+        }
+
+        #reset-btn {
+            font-size: 11px;
+            color: #d62728;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 0;
+        }
+
+        .report-link {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 11px;
+            color: #1a73e8;
+            cursor: pointer;
+            text-decoration: underline;
+            background: none;
+            border: none;
+            padding: 0;
+            font-family: inherit;
+        }
+
+        .report-link:hover {
+            color: #1557b0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <div id="panel">
+        <div id="panel-header">
+            <h1>🤖 FTC Teams World Map</h1>
+            <p>FIRST Tech Challenge · All registered teams</p>
+        </div>
+
+        <div id="panel-body">
+            <input id="search" type="text" placeholder="Search name, number, city…" />
+
+            <div id="filters">
+                <select id="country-filter">
+                    <option value="">All countries</option>
+                </select>
+
+                <select id="state-filter">
+                    <option value="">All states / provinces</option>
+                </select>
+            </div>
+
+            <div id="stats">
+                <span>
+                    Showing <span id="team-count">Loading…</span>
+                </span>
+
+                <button id="reset-btn" onclick="resetFilters()">
+                    Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ════════════════════════════════════════════════════════════════════
+        // PUBLIC CORRECTION FORM
+        //
+        // Users submit corrections through the public Feishu form.
+        // No Feishu API credentials are exposed in this website.
+        //
+        // The form writes submissions into your Feishu Bitable.
+        // Admin can then review/approve them.
+        // GitHub Actions handles approved corrections separately.
+        // ════════════════════════════════════════════════════════════════════
+
+        const CORRECTION_FORM_URL =
+            "https://ocnlpam5i57x.feishu.cn/share/base/form/shrcnL4Ew4BYgYb9wr93CEGVHNf";
+
+
+        // ════════════════════════════════════════════════════════════════════
+        // STATE / PROVINCE FULL NAME LOOKUP
+        // ════════════════════════════════════════════════════════════════════
+
+        const COUNTRY_NAMES = {
+            USA: "United States",
+            "South Korea": "South Korea",
+            "Türkiye": "Turkey",
+            "Chinese Taipei": "Chinese Taipei",
+            "Czech Republic": "Czech Republic",
+            "Bosnia-Herzegovina": "Bosnia and Herzegovina",
+            "Ivory Coast": "Côte d'Ivoire",
+            Macedonia: "North Macedonia",
+            Moldova: "Moldova",
+            Venezuela: "Venezuela",
+            Vietnam: "Vietnam",
+            Laos: "Laos",
+            Independent: "Independent (No Country)",
+        };
+
+        const STATE_NAMES = {
+            USA: {
+                AL: "Alabama",
+                AK: "Alaska",
+                AZ: "Arizona",
+                AR: "Arkansas",
+                CA: "California",
+                CO: "Colorado",
+                CT: "Connecticut",
+                DE: "Delaware",
+                FL: "Florida",
+                GA: "Georgia",
+                HI: "Hawaii",
+                ID: "Idaho",
+                IL: "Illinois",
+                IN: "Indiana",
+                IA: "Iowa",
+                KS: "Kansas",
+                KY: "Kentucky",
+                LA: "Louisiana",
+                ME: "Maine",
+                MD: "Maryland",
+                MA: "Massachusetts",
+                MI: "Michigan",
+                MN: "Minnesota",
+                MS: "Mississippi",
+                MO: "Missouri",
+                MT: "Montana",
+                NE: "Nebraska",
+                NV: "Nevada",
+                NH: "New Hampshire",
+                NJ: "New Jersey",
+                NM: "New Mexico",
+                NY: "New York",
+                NC: "North Carolina",
+                ND: "North Dakota",
+                OH: "Ohio",
+                OK: "Oklahoma",
+                OR: "Oregon",
+                PA: "Pennsylvania",
+                RI: "Rhode Island",
+                SC: "South Carolina",
+                SD: "South Dakota",
+                TN: "Tennessee",
+                TX: "Texas",
+                UT: "Utah",
+                VT: "Vermont",
+                VA: "Virginia",
+                WA: "Washington",
+                WV: "West Virginia",
+                WI: "Wisconsin",
+                WY: "Wyoming",
+                DC: "District of Columbia",
+                PR: "Puerto Rico",
+                GU: "Guam",
+                VI: "U.S. Virgin Islands",
+                AS: "American Samoa",
+                AE: "Armed Forces Europe",
+                AP: "Armed Forces Pacific",
+                AA: "Armed Forces Americas",
+            },
+
+            Canada: {
+                AB: "Alberta",
+                BC: "British Columbia",
+                MB: "Manitoba",
+                NB: "New Brunswick",
+                NL: "Newfoundland and Labrador",
+                NS: "Nova Scotia",
+                NT: "Northwest Territories",
+                NU: "Nunavut",
+                ON: "Ontario",
+                PE: "Prince Edward Island",
+                QC: "Quebec",
+                SK: "Saskatchewan",
+                YT: "Yukon",
+            },
+
+            Australia: {
+                ACT: "Australian Capital Territory",
+                NSW: "New South Wales",
+                NT: "Northern Territory",
+                QLD: "Queensland",
+                SA: "South Australia",
+                TAS: "Tasmania",
+                VIC: "Victoria",
+                WA: "Western Australia",
+            },
+
+            China: {
+                AH: "Anhui",
+                BJ: "Beijing",
+                CQ: "Chongqing",
+                FJ: "Fujian",
+                GD: "Guangdong",
+                GS: "Gansu",
+                GX: "Guangxi",
+                GZ: "Guizhou",
+                HA: "Henan",
+                HB: "Hubei",
+                HE: "Hebei",
+                HI: "Hainan",
+                HN: "Hunan",
+                HL: "Heilongjiang",
+                JL: "Jilin",
+                JS: "Jiangsu",
+                JX: "Jiangxi",
+                LN: "Liaoning",
+                NM: "Inner Mongolia",
+                NX: "Ningxia",
+                QH: "Qinghai",
+                SC: "Sichuan",
+                SD: "Shandong",
+                SH: "Shanghai",
+                SN: "Shaanxi",
+                SX: "Shanxi",
+                TJ: "Tianjin",
+                XJ: "Xinjiang",
+                XZ: "Tibet",
+                YN: "Yunnan",
+                ZJ: "Zhejiang",
+            },
+
+            "Chinese Taipei": {
+                TPE: "Taipei City",
+                NWT: "New Taipei City",
+                TXG: "Taichung City",
+                TNN: "Tainan City",
+                KHH: "Kaohsiung City",
+                TAO: "Taoyuan City",
+                HSC: "Hsinchu City",
+                HSQ: "Hsinchu County",
+                MIA: "Miaoli County",
+                CHA: "Changhua County",
+                NAN: "Nantou County",
+                YUN: "Yunlin County",
+                CYI: "Chiayi City",
+                CYQ: "Chiayi County",
+                PIF: "Pingtung County",
+                ILA: "Yilan County",
+                HUA: "Hualien County",
+                TTT: "Taitung County",
+                PEN: "Penghu County",
+                KIN: "Kinmen County",
+                LIE: "Lienchiang County",
+            },
+
+            Mexico: {
+                AGU: "Aguascalientes",
+                BCN: "Baja California",
+                BCS: "Baja California Sur",
+                CAM: "Campeche",
+                CHP: "Chiapas",
+                CHH: "Chihuahua",
+                CMX: "Mexico City",
+                COA: "Coahuila",
+                COL: "Colima",
+                DUR: "Durango",
+                GUA: "Guanajuato",
+                GRO: "Guerrero",
+                HID: "Hidalgo",
+                JAL: "Jalisco",
+                MEX: "State of Mexico",
+                MIC: "Michoacán",
+                MOR: "Morelos",
+                NAY: "Nayarit",
+                NLE: "Nuevo León",
+                OAX: "Oaxaca",
+                PUE: "Puebla",
+                QUE: "Querétaro",
+                ROO: "Quintana Roo",
+                SLP: "San Luis Potosí",
+                SIN: "Sinaloa",
+                SON: "Sonora",
+                TAB: "Tabasco",
+                TAM: "Tamaulipas",
+                TLA: "Tlaxcala",
+                VER: "Veracruz",
+                YUC: "Yucatán",
+                ZAC: "Zacatecas",
+            },
+
+            Brazil: {
+                AC: "Acre",
+                AL: "Alagoas",
+                AP: "Amapá",
+                AM: "Amazonas",
+                BA: "Bahia",
+                CE: "Ceará",
+                DF: "Federal District",
+                ES: "Espírito Santo",
+                GO: "Goiás",
+                MA: "Maranhão",
+                MT: "Mato Grosso",
+                MS: "Mato Grosso do Sul",
+                MG: "Minas Gerais",
+                PA: "Pará",
+                PB: "Paraíba",
+                PR: "Paraná",
+                PE: "Pernambuco",
+                PI: "Piauí",
+                RJ: "Rio de Janeiro",
+                RN: "Rio Grande do Norte",
+                RS: "Rio Grande do Sul",
+                RO: "Rondônia",
+                RR: "Roraima",
+                SC: "Santa Catarina",
+                SP: "São Paulo",
+                SE: "Sergipe",
+                TO: "Tocantins",
+            },
+
+            India: {
+                AP: "Andhra Pradesh",
+                AR: "Arunachal Pradesh",
+                AS: "Assam",
+                BR: "Bihar",
+                CT: "Chhattisgarh",
+                DL: "Delhi",
+                GA: "Goa",
+                GJ: "Gujarat",
+                HR: "Haryana",
+                HP: "Himachal Pradesh",
+                JK: "Jammu and Kashmir",
+                JH: "Jharkhand",
+                KA: "Karnataka",
+                KL: "Kerala",
+                MP: "Madhya Pradesh",
+                MH: "Maharashtra",
+                MN: "Manipur",
+                ML: "Meghalaya",
+                MZ: "Mizoram",
+                NL: "Nagaland",
+                OD: "Odisha",
+                PB: "Punjab",
+                RJ: "Rajasthan",
+                SK: "Sikkim",
+                TN: "Tamil Nadu",
+                TG: "Telangana",
+                TR: "Tripura",
+                UP: "Uttar Pradesh",
+                UT: "Uttarakhand",
+                WB: "West Bengal",
+            },
+
+            Germany: {
+                BB: "Brandenburg",
+                BE: "Berlin",
+                BW: "Baden-Württemberg",
+                BY: "Bavaria",
+                HB: "Bremen",
+                HE: "Hesse",
+                HH: "Hamburg",
+                MV: "Mecklenburg-Vorpommern",
+                NI: "Lower Saxony",
+                NW: "North Rhine-Westphalia",
+                RP: "Rhineland-Palatinate",
+                SH: "Schleswig-Holstein",
+                SL: "Saarland",
+                SN: "Saxony",
+                ST: "Saxony-Anhalt",
+                TH: "Thuringia",
+            },
+
+            "South Korea": {
+                "11": "Seoul",
+                "26": "Busan",
+                "27": "Daegu",
+                "28": "Incheon",
+                "29": "Gwangju",
+                "30": "Daejeon",
+                "31": "Ulsan",
+                "36": "Sejong",
+                "41": "Gyeonggi",
+                "42": "Gangwon",
+                "43": "North Chungcheong",
+                "44": "South Chungcheong",
+                "45": "North Jeolla",
+                "46": "South Jeolla",
+                "47": "North Gyeongsang",
+                "48": "South Gyeongsang",
+                "49": "Jeju",
+            },
+
+            "Saudi Arabia": {
+                "01": "Riyadh",
+                "02": "Mecca",
+                "03": "Medina",
+                "04": "Eastern Province",
+                "05": "Al Qassim",
+                "06": "Ha'il",
+                "07": "Tabuk",
+                "08": "Northern Borders",
+                "10": "Najran",
+                "11": "Al Bahah",
+                "12": "Al Jawf",
+                "13": "Asir",
+            },
+
+            Netherlands: {
+                DR: "Drenthe",
+                FL: "Flevoland",
+                FR: "Friesland",
+                GE: "Gelderland",
+                GR: "Groningen",
+                LI: "Limburg",
+                NB: "North Brabant",
+                NH: "North Holland",
+                OV: "Overijssel",
+                UT: "Utrecht",
+                ZE: "Zeeland",
+                ZH: "South Holland",
+            },
+
+            "South Africa": {
+                EC: "Eastern Cape",
+                FS: "Free State",
+                GP: "Gauteng",
+                KZN: "KwaZulu-Natal",
+                LP: "Limpopo",
+                MP: "Mpumalanga",
+                NC: "Northern Cape",
+                NW: "North West",
+                WC: "Western Cape",
+            },
+
+            Israel: {
+                D: "Southern District",
+                HA: "Haifa District",
+                JM: "Jerusalem District",
+                M: "Central District",
+                Z: "Northern District",
+                TA: "Tel Aviv District",
+            },
+
+            Kazakhstan: {
+                ALA: "Almaty (city)",
+                AST: "Astana",
+                SHY: "Shymkent",
+                ALM: "Almaty Region",
+                KAR: "Karaganda",
+                VOS: "East Kazakhstan",
+                AKT: "Aktobe",
+                ATY: "Atyrau",
+                ZHA: "Zhambyl",
+                KUS: "Kostanay",
+                PAV: "Pavlodar",
+                SEV: "North Kazakhstan",
+            },
+
+            Romania: {
+                B: "Bucharest",
+                BV: "Brașov",
+                CJ: "Cluj",
+                CT: "Constanța",
+                IS: "Iași",
+                MS: "Mureș",
+                PH: "Prahova",
+                SB: "Sibiu",
+                TM: "Timiș",
+            },
+
+            Indonesia: {
+                JK: "Jakarta",
+                JB: "West Java",
+                JT: "Central Java",
+                JI: "East Java",
+                SU: "North Sumatra",
+                SS: "South Sumatra",
+                SN: "South Sulawesi",
+                BA: "Bali",
+                KI: "East Kalimantan",
+                YO: "Yogyakarta",
+            },
+        };
+
+
+        function getStateFull(country, code) {
+            if (!code) return code;
+
+            return (
+                STATE_NAMES[country] &&
+                STATE_NAMES[country][code]
+            ) || code;
+        }
+
+
+        function getCountryFull(raw) {
+            return COUNTRY_NAMES[raw] || raw;
+        }
+
+
+        // ════════════════════════════════════════════════════════════════════
+        // MAP SETUP
+        // ════════════════════════════════════════════════════════════════════
+
+        const map = L.map("map", {
+            preferCanvas: true
+        }).setView([20, 10], 2);
+
+
+        L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+                attribution:
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+
+                maxZoom: 19,
+            }
+        ).addTo(map);
+
+
+        const clusterGroup = L.markerClusterGroup({
+            chunkedLoading: true
+        });
+
+        map.addLayer(clusterGroup);
+
+
+        let allTeams = [];
+
+        window.resetFilters = resetFilters;
+
+
+        // ════════════════════════════════════════════════════════════════════
+        // LOAD DATA
+        // ════════════════════════════════════════════════════════════════════
+
+        fetch("ftc_teams.json")
+            .then(r => {
+                if (!r.ok) {
+                    throw new Error(`HTTP ${r.status}`);
+                }
+
+                return r.json();
+            })
+
+            .then(data => {
+
+                allTeams =
+                    (Array.isArray(data) ? data : data.teams || [])
+                        .filter(t => t.lat != null && t.lng != null);
+
+                populateCountries();
+                populateStates(allTeams);
+                renderMarkers(allTeams);
+            })
+
+            .catch(err => {
+
+                document.getElementById("team-count").textContent =
+                    "⚠ Could not load ftc_teams.json";
+
+                console.error(err);
+            });
+
+
+        // ════════════════════════════════════════════════════════════════════
+        // DROPDOWNS
+        // ════════════════════════════════════════════════════════════════════
+
+        function populateCountries() {
+
+            const sel =
+                document.getElementById("country-filter");
+
+            sel.innerHTML =
+                '<option value="">All countries</option>';
+
+
+            const countries =
+                [...new Set(
+                    allTeams
+                        .map(t => t.country)
+                        .filter(Boolean)
+                )];
+
+
+            countries.sort((a, b) =>
+                getCountryFull(a)
+                    .localeCompare(getCountryFull(b))
+            );
+
+
+            countries.forEach(raw => {
+
+                const o = document.createElement("option");
+
+                o.value = raw;
+                o.textContent = getCountryFull(raw);
+
+                sel.appendChild(o);
+            });
+        }
+
+
+        function populateStates(teams) {
+
+            const sel =
+                document.getElementById("state-filter");
+
+            sel.innerHTML =
+                '<option value="">All states / provinces</option>';
+
+
+            const country =
+                document.getElementById("country-filter").value;
+
+
+            const pool =
+                country
+                    ? teams.filter(t => t.country === country)
+                    : teams;
+
+
+            const codes =
+                [...new Set(
+                    pool
+                        .map(t => t.state)
+                        .filter(Boolean)
+                )];
+
+
+            codes.sort((a, b) =>
+                getStateFull(
+                    country || "",
+                    a
+                ).localeCompare(
+                    getStateFull(
+                        country || "",
+                        b
+                    )
+                )
+            );
+
+
+            codes.forEach(code => {
+
+                const o =
+                    document.createElement("option");
+
+                o.value = code;
+
+                o.textContent =
+                    getStateFull(
+                        country || "",
+                        code
+                    );
+
+                sel.appendChild(o);
+            });
+        }
+
+
+        document
+            .getElementById("country-filter")
+            .addEventListener("change", function () {
+
+                populateStates(allTeams);
+                applyFilters();
+            });
+
+
+        document
+            .getElementById("state-filter")
+            .addEventListener(
+                "change",
+                applyFilters
+            );
+
+
+        document
+            .getElementById("search")
+            .addEventListener(
+                "input",
+                applyFilters
+            );
+
+
+        // ════════════════════════════════════════════════════════════════════
+        // FILTERING
+        // ════════════════════════════════════════════════════════════════════
+
+        function applyFilters() {
+
+            const q =
+                document
+                    .getElementById("search")
+                    .value
+                    .toLowerCase()
+                    .trim();
+
+
+            const country =
+                document
+                    .getElementById("country-filter")
+                    .value;
+
+
+            const state =
+                document
+                    .getElementById("state-filter")
+                    .value;
+
+
+            const filtered =
+                allTeams.filter(t => {
+
+                    if (
+                        country &&
+                        t.country !== country
+                    ) {
+                        return false;
+                    }
+
+
+                    if (
+                        state &&
+                        t.state !== state
+                    ) {
+                        return false;
+                    }
+
+
+                    if (q) {
+
+                        const stateFull =
+                            getStateFull(
+                                t.country,
+                                t.state
+                            ).toLowerCase();
+
+
+                        const countryFull =
+                            getCountryFull(
+                                t.country
+                            ).toLowerCase();
+
+
+                        const hay = [
+                            String(t.number),
+                            t.nameFull,
+                            t.nameShort,
+                            t.city,
+                            t.state,
+                            stateFull,
+                            t.country,
+                            countryFull,
+                            t.school,
+                        ]
+                            .filter(Boolean)
+                            .join(" ")
+                            .toLowerCase();
+
+
+                        if (!hay.includes(q)) {
+                            return false;
+                        }
+                    }
+
+
+                    return true;
+                });
+
+
+            renderMarkers(filtered);
+        }
+
+
+        function resetFilters() {
+
+            document
+                .getElementById("search")
+                .value = "";
+
+
+            document
+                .getElementById("country-filter")
+                .value = "";
+
+
+            populateStates(allTeams);
+
+
+            document
+                .getElementById("state-filter")
+                .value = "";
+
+
+            renderMarkers(allTeams);
+        }
+
+
+        // ════════════════════════════════════════════════════════════════════
+        // RENDER MARKERS
+        // ════════════════════════════════════════════════════════════════════
+
+        function renderMarkers(teams) {
+
+            clusterGroup.clearLayers();
+
+
+            const layers =
+                teams.map(t => {
+
+                    const stateFull =
+                        getStateFull(
+                            t.country,
+                            t.state
+                        );
+
+
+                    const countryFull =
+                        getCountryFull(
+                            t.country
+                        );
+
+
+                    const location =
+                        [
+                            t.city,
+                            stateFull,
+                            countryFull
+                        ]
+                            .filter(Boolean)
+                            .join(", ");
+
+
+                    const displayName =
+                        t.nameFull ||
+                        t.nameShort ||
+                        "";
+
+
+                    const shortLabel =
+                        (
+                            t.nameShort &&
+                            t.nameShort !== t.nameFull
+                        )
+                            ? `
+                                <div style="
+                                    font-size:11px;
+                                    color:#777;
+                                    font-style:italic
+                                ">
+                                    "${esc(t.nameShort)}"
+                                </div>
+                            `
+                            : "";
+
+
+                    const school =
+                        t.school
+                            ? `
+                                <div style="
+                                    font-size:11px;
+                                    color:#555;
+                                    margin-top:4px
+                                ">
+                                    🏫 ${esc(t.school)}
+                                </div>
+                            `
+                            : "";
+
+
+                    return L
+                        .marker([
+                            t.lat,
+                            t.lng
+                        ])
+
+                        .bindPopup(`
+                            <div style="
+                                font-size:13px;
+                                min-width:190px;
+                                line-height:1.6
+                            ">
+
+                                <div style="
+                                    font-size:11px;
+                                    color:#999;
+                                    font-weight:600
+                                ">
+                                    #${esc(t.number)}
+                                </div>
+
+
+                                <div style="
+                                    color:#d62728;
+                                    font-weight:700;
+                                    font-size:14px
+                                ">
+                                    ${esc(displayName)}
+                                </div>
+
+
+                                ${shortLabel}
+
+                                ${school}
+
+
+                                <hr style="
+                                    margin:6px 0;
+                                    border:none;
+                                    border-top:1px solid #eee
+                                ">
+
+
+                                <div style="
+                                    font-size:11px;
+                                    color:#666
+                                ">
+                                    📍 ${esc(location)}
+                                </div>
+
+
+                                <button
+                                    class="report-link"
+                                    onclick="openCorrectionForm(${JSON.stringify(t.number)})"
+                                >
+                                    Report wrong location
+                                </button>
+
+                            </div>
+                        `);
+                });
+
+
+            clusterGroup.addLayers(layers);
+
+
+            document
+                .getElementById("team-count")
+                .textContent =
+                teams.length.toLocaleString();
+        }
+
+
+        // ════════════════════════════════════════════════════════════════════
+        // ESCAPE HTML
+        // ════════════════════════════════════════════════════════════════════
+
+        function esc(s) {
+
+            return s
+                ? String(s)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                : "";
+        }
+
+
+        // ════════════════════════════════════════════════════════════════════
+        // OPEN CORRECTION FORM
+        // ════════════════════════════════════════════════════════════════════
+        //
+        // The website does NOT communicate with Feishu's API.
+        //
+        // Clicking "Report wrong location" simply opens the public
+        // Feishu form in a new tab.
+        //
+        // This keeps the Feishu App Secret completely out of the frontend.
+        // ════════════════════════════════════════════════════════════════════
+
+        function openCorrectionForm(teamNumber) {
+
+            window.open(
+                CORRECTION_FORM_URL,
+                "_blank",
+                "noopener,noreferrer"
+            );
+        }
+
+    </script>
+
+</body>
+
+</html>
