@@ -1085,9 +1085,8 @@
         // ════════════════════════════════════════════════════════════════════
 
         function openCorrectionForm(teamNumber) {
-
             window.open(
-                CORRECTION_FORM_URL,
+                CORRECTION_FORM_URL + "?prefill_team_number=" + encodeURIComponent(teamNumber),
                 "_blank",
                 "noopener,noreferrer"
             );
