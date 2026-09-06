@@ -40,11 +40,11 @@ def get_approved_rows(token):
             approved.append({
                 "record_id":   r["record_id"],
                 "team_number": str(int(float(fields.get("team_number", 0)))).strip(),
-                "city":        str(fields.get("city", "")).strip(),
-                "state":       str(fields.get("state", "")).strip(),
-                "country":     str(fields.get("country", "")).strip(),
-                "name_full":   str(fields.get("name_full", "")).strip(),
-                "name_short":  str(fields.get("name_short", "")).strip(),
+                "city":        str(fields.get("new_city", "")).strip(),
+                "state":       str(fields.get("new_state", "")).strip(),
+                "country":     str(fields.get("new_country", "")).strip(),
+                "name_full":   str(fields.get("队名", "")).strip(),
+                "name_short":  str(fields.get("队名简称", "")).strip(),
             })
     return approved
 
@@ -140,12 +140,14 @@ def apply_corrections(rows):
     updated = 0
     for row in rows:
         team_num = row["team_number"]
- # Translate any Chinese location fields to English
+
+        # Translate any Chinese location fields to English
         city = translate_to_english(row["city"])
         state = translate_to_english(row["state"])
         country = translate_to_english(row["country"])
         name_full = row["name_full"]   # names stay as-is (no translation)
         name_short = row["name_short"]
+
         print(
             f"  Row data: team={team_num} city='{city}' state='{state}' country='{country}' name_full='{name_full}' name_short='{name_short}'")
 
