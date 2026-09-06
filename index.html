@@ -843,39 +843,54 @@
                     }
 
 
+                    // if (q) {
+
+                    //     const stateFull =
+                    //         getStateFull(
+                    //             t.country,
+                    //             t.state
+                    //         ).toLowerCase();
+
+
+                    //     const countryFull =
+                    //         getCountryFull(
+                    //             t.country
+                    //         ).toLowerCase();
+
+
+                    //     const hay = [
+                    //         String(t.number),
+                    //         t.nameFull,
+                    //         t.nameShort,
+                    //         t.city,
+                    //         t.state,
+                    //         stateFull,
+                    //         t.country,
+                    //         countryFull,
+                    //         t.school,
+                    //     ]
+                    //         .filter(Boolean)
+                    //         .join(" ")
+                    //         .toLowerCase();
+
+
+                    //     if (!hay.includes(q)) {
+                    //         return false;
+                    //     }
+                    // }
                     if (q) {
-
-                        const stateFull =
-                            getStateFull(
-                                t.country,
-                                t.state
-                            ).toLowerCase();
-
-
-                        const countryFull =
-                            getCountryFull(
-                                t.country
-                            ).toLowerCase();
-
-
-                        const hay = [
-                            String(t.number),
-                            t.nameFull,
-                            t.nameShort,
-                            t.city,
-                            t.state,
-                            stateFull,
-                            t.country,
-                            countryFull,
-                            t.school,
-                        ]
-                            .filter(Boolean)
-                            .join(" ")
-                            .toLowerCase();
-
-
-                        if (!hay.includes(q)) {
-                            return false;
+                        const isNumeric = /^\d+$/.test(q);
+                        if (isNumeric) {
+                            // Exact match for team numbers
+                            if (String(t.number) !== q) return false;
+                        } else {
+                            const stateFull = getStateFull(t.country, t.state).toLowerCase();
+                            const countryFull = getCountryFull(t.country).toLowerCase();
+                            const hay = [
+                                String(t.number), t.nameFull, t.nameShort,
+                                t.city, t.state, stateFull, t.country, countryFull, t.school,
+                            ].filter(Boolean).join(" ").toLowerCase();
+                            if (!hay.includes(q)) return false;
                         }
                     }
 
