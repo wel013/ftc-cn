@@ -80,30 +80,55 @@ def translate_to_english(text):
 # ── Step 5: Geocode via Nominatim ─────────────────────────
 
 
-def geocode(city, state, country):
-    parts = [p for p in [city, state, country] if p]
-    query = ", ".join(parts)
-    if not query:
-        return None, None
-
+def geocode_query(query):
+    """Try one Nominatim query, return (lat, lng) or (None, None)."""
     url = "https://nominatim.openstreetmap.org/search"
     params = {"q": query, "format": "json", "limit": 1}
-    headers = {"User-Agent": "ftc-map-correction/1.0"}
-
+    headers = {"User-Agent": "ftc-world-map/1.0 (github.com/wel013/ftc-cn)"}
     try:
         res = requests.get(url, params=params, headers=headers, timeout=10)
+        print(f"  Nominatim status: {res.status_code} for '{query}'")
         results = res.json()
+        print(f"  Nominatim results count: {len(results)}")
         if results:
             lat = float(results[0]["lat"])
             lng = float(results[0]["lon"])
-            print(f"  Geocoded '{query}' → ({lat}, {lng})")
+            print(f"  ✓ Geocoded '{query}' → ({lat}, {lng})")
             return lat, lng
-        else:
-            print(f"  No geocode result for '{query}'")
-            return None, None
-    except Exception as e:
-        print(f"  Geocoding failed: {e}")
         return None, None
+    except Exception as e:
+        print(f"  Geocoding error: {e}")
+        return None, None
+
+
+def geocode(city, state, country):
+    # Try full query first
+    parts = [p for p in [city, state, country] if p]
+    if not parts:
+        return None, None
+
+    query = ", ".join(parts)
+    lat, lng = geocode_query(query)
+    if lat is not None:
+        return lat, lng
+
+    # Fallback: try without state
+    time.sleep(1)
+    if city and country:
+        lat, lng = geocode_query(f"{city}, {country}")
+        if lat is not None:
+            return lat, lng
+
+    # Fallback: try country only
+    time.sleep(1)
+    if country:
+        lat, lng = geocode_query(country)
+        if lat is not None:
+            print(f"  ⚠ Only geocoded to country level")
+            return lat, lng
+
+    print(f"  ✗ All geocoding attempts failed for: {query}")
+    return None, None
 
 # ── Step 6: Apply corrections to ftc_teams.json ───────────
 
