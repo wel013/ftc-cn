@@ -39,7 +39,7 @@ def get_approved_rows(token):
         if is_approved and not is_applied:
             approved.append({
                 "record_id":   r["record_id"],
-                "team_number": str(fields.get("team_number", "")).strip(),
+                "team_number": str(int(float(fields.get("team_number", 0)))).strip(),
                 "city":        str(fields.get("city", "")).strip(),
                 "state":       str(fields.get("state", "")).strip(),
                 "country":     str(fields.get("country", "")).strip(),
@@ -131,22 +131,22 @@ def apply_corrections(rows):
 
         for team in teams:
             if str(team.get("number", "")) == team_num:
-                # Update location fields
-                if city:
-                    team["city"] = city
-                if state:
-                    team["state"] = state
-                if country:
-                    team["country"] = country
+                # Helper: only update if new value is non-empty
+                def upd(field, new_val):
+                    if new_val and new_val.strip():
+                        team[field] = new_val.strip()
 
-                # Update name fields
-                if name_full:
-                    team["nameFull"] = name_full
-                if name_short:
-                    team["nameShort"] = name_short
+                # Update location fields (only if provided)
+                upd("city",      city)
+                upd("state",     state)
+                upd("country",   country)
 
-                # Update geocode_str if location changed
-                if city or state or country:
+                # Update name fields (only if provided)
+                upd("nameFull",  name_full)
+                upd("nameShort", name_short)
+
+                # Update geocode_str only if at least one location field changed
+                if any([city, state, country]):
                     team["geocode_str"] = ", ".join(
                         filter(None, [
                             team.get("city"),
@@ -155,7 +155,7 @@ def apply_corrections(rows):
                         ])
                     )
 
-                # Update lat/lng if geocoding succeeded
+                # Update lat/lng only if geocoding succeeded
                 if lat is not None:
                     team["lat"] = lat
                     team["lng"] = lng
