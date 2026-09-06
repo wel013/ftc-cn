@@ -140,15 +140,14 @@ def apply_corrections(rows):
     updated = 0
     for row in rows:
         team_num = row["team_number"]
-
-        print(
-            f"  Row data: team={team_num} city='{city}' state='{state}' country='{country}' name_full='{name_full}' name_short='{name_short}'")
-        # Translate any Chinese location fields to English
+ # Translate any Chinese location fields to English
         city = translate_to_english(row["city"])
         state = translate_to_english(row["state"])
         country = translate_to_english(row["country"])
         name_full = row["name_full"]   # names stay as-is (no translation)
         name_short = row["name_short"]
+        print(
+            f"  Row data: team={team_num} city='{city}' state='{state}' country='{country}' name_full='{name_full}' name_short='{name_short}'")
 
         # Re-geocode if any location field was provided
         lat, lng = None, None
