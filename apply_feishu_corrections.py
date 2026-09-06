@@ -77,6 +77,23 @@ def translate_to_english(text):
         print(f"  Translation failed for '{text}': {e}")
         return text
 
+
+# ── Step 4b: Normalize to Title Case ──────────────────────
+def normalize_location(text):
+    if not text:
+        return text
+    # Words that should stay lowercase in place names
+    lower_words = {"of", "the", "and", "de",
+                   "la", "le", "du", "van", "von", "al"}
+    words = text.strip().split()
+    result = []
+    for i, word in enumerate(words):
+        if i == 0 or word.lower() not in lower_words:
+            result.append(word.capitalize())
+        else:
+            result.append(word.lower())
+    return " ".join(result)
+
 # ── Step 5: Geocode via Nominatim ─────────────────────────
 
 
@@ -142,9 +159,9 @@ def apply_corrections(rows):
         team_num = row["team_number"]
 
         # Translate any Chinese location fields to English
-        city = translate_to_english(row["city"])
-        state = translate_to_english(row["state"])
-        country = translate_to_english(row["country"])
+        city = normalize_location(translate_to_english(row["city"]))
+        state = normalize_location(translate_to_english(row["state"]))
+        country = normalize_location(translate_to_english(row["country"]))
         name_full = row["name_full"]   # names stay as-is (no translation)
         name_short = row["name_short"]
 
