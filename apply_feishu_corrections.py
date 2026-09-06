@@ -154,9 +154,15 @@ def apply_corrections(rows):
     with open(FTC_JSON_PATH, "r", encoding="utf-8") as f:
         teams = json.load(f)
 
+    # Deduplicate by number — keep last occurrence
+    seen = {}
+    for team in teams:
+        seen[str(team.get("number", "")).strip()] = team
+    teams = list(seen.values())
+
     updated = 0
     for row in rows:
-        team_num = row["team_number"]
+        team_num = str(row["team_number"]).strip()
 
         # Translate any Chinese location fields to English
         city = normalize_location(translate_to_english(row["city"]))
@@ -175,7 +181,7 @@ def apply_corrections(rows):
             time.sleep(1)  # Nominatim rate limit
 
         for team in teams:
-            if str(team.get("number", "")) == team_num:
+            if str(team.get("number", "")).strip() == team_num.strip():
                 # Helper: only update if new value is non-empty
                 def upd(field, new_val):
                     if new_val and new_val.strip():
