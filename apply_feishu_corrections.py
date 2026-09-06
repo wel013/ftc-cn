@@ -130,7 +130,7 @@ def apply_corrections(rows):
             time.sleep(1)  # Nominatim rate limit
 
         for team in teams:
-            if str(team.get("team_number", "")) == team_num:
+            if str(team.get("number", "")) == team_num:
                 # Update location fields
                 if city:
                     team["city"] = city
