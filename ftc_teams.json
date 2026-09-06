@@ -4,12 +4,12 @@
     "nameFull": "FTC1 Team Unlimited 4-H Club",
     "nameShort": "Team Unlimited",
     "school": null,
-    "city": "Sharon",
-    "state": "MA",
-    "country": "USA",
-    "geocode_str": "Sharon, MA, United States",
-    "lat": 42.123733,
-    "lng": -71.178728
+    "city": "Beijing",
+    "state": "Beijing",
+    "country": "china",
+    "geocode_str": "Beijing, Beijing, china",
+    "lat": 39.9011168,
+    "lng": 116.4210134
   },
   {
     "number": 7,
