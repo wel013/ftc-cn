@@ -141,6 +141,8 @@ def apply_corrections(rows):
     for row in rows:
         team_num = row["team_number"]
 
+        print(
+            f"  Row data: team={team_num} city='{city}' state='{state}' country='{country}' name_full='{name_full}' name_short='{name_short}'")
         # Translate any Chinese location fields to English
         city = translate_to_english(row["city"])
         state = translate_to_english(row["state"])
